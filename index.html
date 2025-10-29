@@ -12,12 +12,10 @@
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
   <style>
-    :root {
-      --brand: #0a3d62; --brand-2: #0f5c8b; --bg: #f7f9fc; --text: #1a1f36; --ok: #2f7d32;
-    }
-    html, body { height: 100%; margin: 0; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; background: var(--bg); color: var(--text); }
-    .app { display: grid; grid-template-columns: 320px 1fr; height: 100%; }
+    :root { --brand:#0a3d62; --brand-2:#0f5c8b; --bg:#f7f9fc; --text:#1a1f36; --ok:#2f7d32; }
+    html, body { height:100%; margin:0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; background:var(--bg); color:var(--text); }
+    .app { display:grid; grid-template-columns:320px 1fr; height:100%; }
     .sidebar { background:#fff; border-right:1px solid #e6e9ef; padding:16px; overflow:auto; }
     .brand { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
     .logo { width:28px; height:28px; border-radius:8px; background:var(--brand); }
@@ -25,27 +23,26 @@
     .search { display:flex; gap:8px; margin:12px 0; }
     .search input { flex:1; padding:10px 12px; border:1px solid #d9dee7; border-radius:10px; outline:none; }
     .pill { display:inline-block; padding:6px 10px; border:1px solid #d9dee7; border-radius:999px; font-size:12px; margin-right:6px; cursor:pointer; user-select:none; }
-    .pill.active, .pill:hover { background:var(--brand); color:#fff; border-color: var(--brand); }
+    .pill.active, .pill:hover { background:var(--brand); color:#fff; border-color:var(--brand); }
     .row { display:flex; align-items:center; justify-content:space-between; margin:8px 0 2px; }
     .toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:#5b657a; }
-    .toggle input { transform: scale(1.1); }
+    .toggle input { transform:scale(1.1); }
     .legend { margin-top:8px; font-size:12px; color:#5b657a; }
     .poi-list { margin-top:8px; }
     .poi { padding:10px 8px; border-radius:12px; cursor:pointer; }
     .poi:hover { background:#f1f4f9; }
     #map { width:100%; height:100%; }
-    .maplibregl-popup-content { font: inherit; }
-    .marker { position:relative; width:14px; height:14px; border-radius:50%; background:var(--brand); box-shadow:0 0 0 3px rgba(10,61,98,0.15); }
-    .marker.parking { background:var(--ok); box-shadow:0 0 0 3px rgba(47,125,50,0.15); }
+    .maplibregl-popup-content { font:inherit; }
+    .marker { position:relative; width:14px; height:14px; border-radius:50%; background:var(--brand); box-shadow:0 0 0 3px rgba(10,61,98,.15); }
+    .marker.parking { background:var(--ok); box-shadow:0 0 0 3px rgba(47,125,50,.15); }
     .marker-label { position:absolute; top:-8px; left:18px; padding:2px 6px; background:#fff; border:1px solid #d9dee7; border-radius:8px; font-size:11px; line-height:14px; white-space:nowrap; color:#364152; }
-    .badge { display:inline-block; padding:2px 8px; background: var(--brand-2); color:#fff; border-radius:999px; font-size:11px; }
+    .badge { display:inline-block; padding:2px 8px; background:var(--brand-2); color:#fff; border-radius:999px; font-size:11px; }
     .badge.parking { background:var(--ok); }
     .btn { display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:10px; border:1px solid #d9dee7; font-size:12px; cursor:pointer; }
     .btn:hover { background:#f1f4f9; }
-    @media (max-width: 900px) { .app { grid-template-columns: 1fr; } .sidebar { order:2; height:42vh; } #map { height:58vh; } }
-
+    @media (max-width:900px){ .app{ grid-template-columns:1fr;} .sidebar{ order:2; height:42vh;} #map{ height:58vh;} }
     /* Modal for model-viewer */
-    .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; padding:20px; }
+    .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; padding:20px;}
     .modal.open{display:flex;}
     .dialog{background:#fff; width:min(900px,95vw); height:min(640px,85vh); border-radius:16px; box-shadow:0 10px 30px rgba(0,0,0,.2); display:flex; flex-direction:column;}
     .dialog header{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid #e6e9ef;}
@@ -87,18 +84,18 @@
   </div>
 
   <script>
-    // ======= CONFIG: set to your GitHub Pages base =======
-    // Example: https://YOURNAME.github.io/campus-map
-    const BASE = "https://YOURNAME.github.io/campus-map";
+    // ======= CONFIG: set this to your GitHub Pages URL =======
+    // Example: https://yenghoua99.github.io/campus-map
+    const BASE = "https://yenghoua99.github.io/REPO_NAME";
     const MANIFEST_URL = BASE + "/buildings_manifest.json";
-    const MODELS_BASE  = BASE + "/campus_buildings_models";
-    // =====================================================
+    const MODELS_BASE  = BASE; // GLB files are in the root of the repo per your screenshot
+    // =========================================================
 
     // Chicago campus focus & bounds
     const campusCenter = [-87.6298, 41.8781];
     const maxBounds = [[-87.6375, 41.8735], [-87.6225, 41.8825]];
 
-    // Hard-coded POIs (replace coords later)
+    // Hard-coded POIs (update coords/names any time)
     const POIS = [
       { id: 1,  label:"B1", name:"Building 1", type:"building", coords: [-87.6342, 41.8816], desc:"Administration & Admissions", height: 36 },
       { id: 2,  label:"B2", name:"Building 2", type:"building", coords: [-87.6329, 41.8812], desc:"Finance & HR",               height: 28 },
@@ -114,22 +111,20 @@
       { id: 12, label:"P3", name:"Parking C (South)", type:"parking", coords: [-87.6346, 41.8747], desc:"Overflow & Events" }
     ];
 
-    // Try to load manifest (optional)
+    // Try to load manifest (optional). If missing, page still works with extrusions.
     let modelIndex = {}; // label -> model URL
     fetch(MANIFEST_URL)
       .then(r => r.ok ? r.json() : Promise.reject(new Error("manifest not found")))
       .then(manifest => {
-        // Expect manifest.files = ["B1_Building_1.glb", ...]
         (manifest.files || []).forEach(f => {
           const key = f.split("_")[0].toUpperCase(); // "B1"
           modelIndex[key] = `${MODELS_BASE}/${f}`;
         });
-        console.log("Models available for:", Object.keys(modelIndex));
-        init(); // proceed after manifest (success)
+        init();
       })
       .catch(() => {
         console.log("No manifest/models found — continuing with extrusions only.");
-        init(); // proceed even without manifest
+        init();
       });
 
     function init(){
@@ -263,8 +258,8 @@
         map.setBearing(on ? -20 : 0);
       });
 
-      // Popup "View 3D" buttons
-      map.on('click', (e) => {
+      // Wire popup "View 3D" buttons
+      map.on('click', () => {
         const popups = document.getElementsByClassName('maplibregl-popup');
         if (!popups.length) return;
         const btn = popups[0].querySelector('button[data-3d]');
@@ -289,4 +284,5 @@
   </script>
 </body>
 </html>
+
 
