@@ -1,0 +1,16 @@
+{
+  "format": "glb",
+  "count": 9,
+  "files": [
+    "B1_Building_1.glb",
+    "B2_Building_2.glb",
+    "B3_Building_3.glb",
+    "B4_Building_4.glb",
+    "B5_Building_5.glb",
+    "B6_Building_6.glb",
+    "B7_Building_7.glb",
+    "B8_Building_8.glb",
+    "B9_Building_9.glb"
+  ],
+  "note": "Models are centered at origin and sized in meters for easy placement. Low-poly box placeholders."
+}

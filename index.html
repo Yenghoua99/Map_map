@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chicago Campus Map</title>
+
+  <!-- MapLibre GL -->
+  <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+
+  <style>
+    :root {
+      --brand: #0a3d62;
+      --brand-2: #0f5c8b;
+      --bg: #f7f9fc;
+      --text: #1a1f36;
+      --ok: #2f7d32;
+    }
+    html, body { height: 100%; margin: 0; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif; background: var(--bg); color: var(--text); }
+    .app { display: grid; grid-template-columns: 320px 1fr; height: 100%; }
+
+    .sidebar { background:#fff; border-right:1px solid #e6e9ef; padding:16px; overflow:auto; }
+    .brand { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+    .logo { width:28px; height:28px; border-radius:8px; background:var(--brand); }
+    h1 { font-size:18px; margin:0; color:var(--brand); }
+
+    .search { display:flex; gap:8px; margin:12px 0; }
+    .search input { flex:1; padding:10px 12px; border:1px solid #d9dee7; border-radius:10px; outline:none; }
+
+    .pill { display:inline-block; padding:6px 10px; border:1px solid #d9dee7; border-radius:999px; font-size:12px; margin-right:6px; cursor:pointer; user-select:none; }
+    .pill.active, .pill:hover { background:var(--brand); color:#fff; border-color:var(--brand); }
+
+    .row { display:flex; align-items:center; justify-content:space-between; margin:8px 0 2px; }
+    .toggle { display:flex; align-items:center; gap:8px; font-size:12px; color:#5b657a; }
+    .toggle input { transform: scale(1.1); }
+
+    .legend { margin-top:8px; font-size:12px; color:#5b657a; }
+    .poi-list { margin-top:8px; }
+    .poi { padding:10px 8px; border-radius:12px; cursor:pointer; }
+    .poi:hover { background:#f1f4f9; }
+
+    #map { width:100%; height:100%; }
+    .maplibregl-popup-content { font: inherit; }
+
+    .marker {
+      position:relative; width:14px; height:14px; border-radius:50%;
+      background:var(--brand);
+      box-shadow:0 0 0 3px rgba(10,61,98,0.15);
+    }
+    .marker.parking { background:var(--ok); box-shadow:0 0 0 3px rgba(47,125,50,0.15); }
+    .marker-label {
+      position:absolute; top:-8px; left:18px; padding:2px 6px; background:#fff;
+      border:1px solid #d9dee7; border-radius:8px; font-size:11px; line-height:14px; white-space:nowrap; color:#364152;
+    }
+    .badge { display:inline-block; padding:2px 8px; background:var(--brand-2); color:#fff; border-radius:999px; font-size:11px; }
+    .badge.parking { background:var(--ok); }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { order:2; height:42vh; }
+      #map { height:58vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo"></div>
+        <h1>Acme Campus — Chicago</h1>
+      </div>
+
+      <div class="row">
+        <div>
+          <span class="pill active" data-filter="all">All</span>
+          <span class="pill" data-filter="building">Buildings (9)</span>
+          <span class="pill" data-filter="parking">Parking (3)</span>
+        </div>
+        <label class="toggle"><input id="threeD" type="checkbox" /> 3D</label>
+      </div>
+
+      <div class="search"><input id="q" type="search" placeholder="Search buildings, parking…" /></div>
+      <div class="legend">Click any item to zoom & open details.</div>
+      <div class="poi-list" id="list"></div>
+    </aside>
+
+    <div id="map"></div>
+  </div>
+
+  <script>
+    // === Chicago campus focus ===
+    const campusCenter = [-87.6298, 41.8781];
+
+    // Locked bounds around a small Loop-area bbox
+    const maxBounds = [
+      [-87.6375, 41.8735], // SW
+      [-87.6225, 41.8825]  // NE
+    ];
+
+    // Hard-coded sample coordinates within the bbox (replace with your exact points later)
+    const POIS = [
+      // Buildings
+      { id: 1,  label:"B1", name:"Building 1", type:"building", coords: [-87.6342, 41.8816], desc:"Administration & Admissions", height: 36 },
+      { id: 2,  label:"B2", name:"Building 2", type:"building", coords: [-87.6329, 41.8812], desc:"Finance & HR",               height: 28 },
+      { id: 3,  label:"B3", name:"Building 3", type:"building", coords: [-87.6318, 41.8818], desc:"Student Services",           height: 32 },
+      { id: 4,  label:"B4", name:"Building 4", type:"building", coords: [-87.6305, 41.8810], desc:"Library & Learning",         height: 40 },
+      { id: 5,  label:"B5", name:"Building 5", type:"building", coords: [-87.6295, 41.8804], desc:"Engineering Labs",           height: 44 },
+      { id: 6,  label:"B6", name:"Building 6", type:"building", coords: [-87.6287, 41.8796], desc:"Computer Science",            height: 30 },
+      { id: 7,  label:"B7", name:"Building 7", type:"building", coords: [-87.6309, 41.8782], desc:"Business School",             height: 38 },
+      { id: 8,  label:"B8", name:"Building 8", type:"building", coords: [-87.6322, 41.8787], desc:"Athletics & Wellness",        height: 26 },
+      { id: 9,  label:"B9", name:"Building 9", type:"building", coords: [-87.6336, 41.8793], desc:"Arts & Design",               height: 22 },
+      // Parking
+      { id: 10, label:"P1", name:"Parking A (North)", type:"parking", coords: [-87.6348, 41.8820], desc:"Visitor & Permit" },
+      { id: 11, label:"P2", name:"Parking B (East)",  type:"parking", coords: [-87.6268, 41.8798], desc:"General Parking" },
+      { id: 12, label:"P3", name:"Parking C (South)", type:"parking", coords: [-87.6346, 41.8747], desc:"Overflow & Events" }
+    ];
+
+    // === Map init ===
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://demotiles.maplibre.org/style.json',
+      center: campusCenter,
+      zoom: 16.2,
+      minZoom: 15.2,
+      maxZoom: 19,
+      pitch: 0,
+      maxBounds,
+      dragRotate: false, touchPitch: false
+    });
+    map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-right');
+    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+
+    // Markers with labels
+    const markers = [];
+    function addMarkers(data){
+      markers.forEach(m => m.remove());
+      markers.length = 0;
+      data.forEach(p => {
+        const el = document.createElement('div');
+        el.className = `marker ${p.type === 'parking' ? 'parking' : ''}`;
+        const label = document.createElement('div');
+        label.className = 'marker-label';
+        label.textContent = p.label;
+        el.appendChild(label);
+
+        const marker = new maplibregl.Marker(el).setLngLat(p.coords).addTo(map);
+        marker.setPopup(new maplibregl.Popup({offset:18}).setHTML(`
+          <strong>${p.name}</strong><br/>
+          <span class="badge ${p.type === 'parking' ? 'parking' : ''}">
+            ${p.type === 'parking' ? 'Parking' : 'Building'}
+          </span>
+          &nbsp;<small>${p.label}</small><br/>
+          <small>${p.desc}</small>
+        `));
+        markers.push(marker);
+      });
+    }
+    addMarkers(POIS);
+
+    // Sidebar rendering
+    const listEl = document.getElementById('list');
+    function renderList(items){
+      const sortKey = s => {
+        const m = s.label.match(/([A-Z])(\d+)/);
+        return m ? `${m[1]}${String(m[2]).padStart(2,'0')}` : s.label;
+      };
+      const sorted = items.slice().sort((a,b)=> sortKey(a).localeCompare(sortKey(b)));
+      listEl.innerHTML = sorted.map(p => `
+        <div class="poi" data-id="\${p.id}">
+          <div style="font-weight:600">\${p.label} — \${p.name}</div>
+          <div>
+            <span class="badge \${p.type === 'parking' ? 'parking' : ''}">
+              \${p.type === 'parking' ? 'Parking' : 'Building'}
+            </span>
+            &nbsp;<small>\${p.desc}</small>
+          </div>
+        </div>
+      `).join('');
+    }
+    renderList(POIS);
+
+    listEl.addEventListener('click', e => {
+      const item = e.target.closest('.poi');
+      if(!item) return;
+      const id = +item.dataset.id;
+      const idx = POIS.findIndex(p=>p.id===id);
+      const poi = POIS[idx];
+      map.flyTo({ center: poi.coords, zoom: poi.type === 'parking' ? 17 : 18, speed: 0.7, essential:true });
+      markers[idx].togglePopup();
+    });
+
+    // Filters
+    document.querySelectorAll('.pill').forEach(pill=>{
+      pill.addEventListener('click', ()=>{
+        document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+        pill.classList.add('active');
+        const f = pill.dataset.filter;
+        const data = f==='all' ? POIS : POIS.filter(p=>p.type===f);
+        addMarkers(data); renderList(data);
+      });
+    });
+
+    // Search
+    const q = document.getElementById('q');
+    q.addEventListener('input', ()=>{
+      const t = q.value.toLowerCase();
+      const data = POIS.filter(p =>
+        p.name.toLowerCase().includes(t) ||
+        p.desc.toLowerCase().includes(t) ||
+        p.type.toLowerCase().includes(t) ||
+        p.label.toLowerCase().includes(t)
+      );
+      addMarkers(data); renderList(data);
+    });
+
+    // === Simple 3D buildings (no external models) ===
+    function buildingExtrusionsGeoJSON(points) {
+      const s = 0.00020; // ~15–20m footprint
+      const polys = points.filter(p=>p.type==='building').map(p => ({
+        type: "Feature",
+        properties: { id: p.id, label: p.label, name: p.name, height: p.height || 24 },
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [p.coords[0]-s, p.coords[1]-s],
+            [p.coords[0]+s, p.coords[1]-s],
+            [p.coords[0]+s, p.coords[1]+s],
+            [p.coords[0]-s, p.coords[1]+s],
+            [p.coords[0]-s, p.coords[1]-s]
+          ]]
+        }
+      }));
+      return { type:"FeatureCollection", features: polys };
+    }
+    const buildings3D = buildingExtrusionsGeoJSON(POIS);
+
+    map.on('load', () => {
+      map.addSource('buildings3d', { type:'geojson', data: buildings3D });
+
+      map.addLayer({
+        id: 'buildings-3d',
+        type: 'fill-extrusion',
+        source: 'buildings3d',
+        layout: { visibility: 'none' }, // start hidden
+        paint: {
+          'fill-extrusion-color': '#1f4e79',
+          'fill-extrusion-height': ['get', 'height'],
+          'fill-extrusion-opacity': 0.9
+        }
+      });
+    });
+
+    document.getElementById('threeD').addEventListener('change', (e) => {
+      const on = e.target.checked;
+      map.setLayoutProperty('buildings-3d', 'visibility', on ? 'visible' : 'none');
+      map.setPitch(on ? 55 : 0);
+      map.setBearing(on ? -20 : 0);
+    });
+  </script>
+</body>
+</html>
